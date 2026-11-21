@@ -1,0 +1,5 @@
+{
+  "owner/alpha": {"Python": 1000, "HTML": 500, "CSS": 300, "Jupyter Notebook": 200, "C": 40},
+  "owner/beta": {"Python": 500, "TypeScript": 300, "C++": 60, "SCSS": 10, "Shell": 50},
+  "owner/gamma": {"JavaScript": 100, "Dockerfile": 20, "Makefile": 5}
+}
