@@ -1,0 +1,94 @@
+{
+  "login": "PavelLekomtsev",
+  "name": "Pavel Lekomtsev",
+  "label": "middle_cv_engineer 0.97",
+  "subtitle": "ADAS & Driver Monitoring @ Intelli-Vision · Retail Anti-fraud CV",
+  "hud": {
+    "tl": "REC · CAM_01 · 1920×1080 · 30 FPS",
+    "tr": "model: yolov8x · tracker: SORT",
+    "bl": "detections: 2 · latency: 11 ms · Nizhny Novgorod, RU"
+  },
+  "pose": {"yaw": 25.0, "pitch": 6.0, "roll": 4.0},
+  "face_label": "driver · attentive 0.99",
+  "typing": [
+    "Middle Computer Vision Engineer",
+    "ADAS & Driver Monitoring @ Intelli-Vision",
+    "Retail anti-fraud CV @ VkusVill × ITMO",
+    "Detection · Tracking · Head pose · OCR",
+    "MSc AI @ ITMO · BSc with honours @ HSE"
+  ],
+  "stack": [
+    {"label": "LANGUAGES", "items": [
+      {"slug": "python", "name": "Python", "hex": "3776AB"},
+      {"slug": "cplusplus", "name": "C++", "hex": "00599C"},
+      {"slug": "postgresql", "name": "SQL", "hex": "4169E1"}
+    ]},
+    {"label": "DEEP LEARNING", "items": [
+      {"slug": "pytorch", "name": "PyTorch", "hex": "EE4C2C"},
+      {"slug": "ultralytics", "name": "Ultralytics YOLO", "hex": "111F68"},
+      {"slug": "onnx", "name": "ONNX", "hex": "005CED"},
+      {"slug": "tensorflow", "name": "TensorFlow", "hex": "FF6F00"},
+      {"slug": "scikitlearn", "name": "scikit-learn", "hex": "F7931E"}
+    ]},
+    {"label": "COMPUTER VISION", "items": [
+      {"slug": "opencv", "name": "OpenCV", "hex": "5C3EE8"},
+      {"slug": "roboflow", "name": "Roboflow", "hex": "6706CE"},
+      {"slug": null, "name": "CVAT", "hex": null},
+      {"slug": null, "name": "FiftyOne", "hex": null},
+      {"slug": "unrealengine", "name": "Unreal Engine 5", "hex": "0E1128"}
+    ]},
+    {"label": "MLOPS & SERVING", "items": [
+      {"slug": "docker", "name": "Docker", "hex": "2496ED"},
+      {"slug": "fastapi", "name": "FastAPI", "hex": "009688"},
+      {"slug": null, "name": "ClearML", "hex": null},
+      {"slug": "githubactions", "name": "GitHub Actions", "hex": "2088FF"},
+      {"slug": "jenkins", "name": "Jenkins", "hex": "D24939"}
+    ]},
+    {"label": "DATA & TOOLS", "items": [
+      {"slug": "numpy", "name": "NumPy", "hex": "013243"},
+      {"slug": "pandas", "name": "pandas", "hex": "150458"},
+      {"slug": "jupyter", "name": "Jupyter", "hex": "F37626"},
+      {"slug": "huggingface", "name": "Hugging Face", "hex": "FFD21E"},
+      {"slug": "linux", "name": "Linux", "hex": "FCC624"},
+      {"slug": "git", "name": "Git", "hex": "F03C2E"}
+    ]}
+  ],
+  "projects": [
+    {
+      "slug": "neosmart", "title": "NeoSmart", "badge": "BSc THESIS", "accent": "plain",
+      "tag": "smart_parking 0.99", "thumb": "neosmart.jpg",
+      "desc": "Smart parking for Nizhny Novgorod: a UE5 digital twin with six cameras, YOLOv8 + SORT and a plate-recognition barrier.",
+      "chips": ["YOLOv8", "SORT", "FastAPI", "UE5", "ClearML"],
+      "url": "https://github.com/PavelLekomtsev/NeoSmart"
+    },
+    {
+      "slug": "praxis", "title": "Praxis", "badge": "HACKATHON WINNER", "accent": "gold",
+      "tag": "action_segmentation 0.98", "thumb": null,
+      "desc": "Auto-annotation of manipulation videos: a learned boundary detector cuts the steps, Qwen3-VL names them.",
+      "chips": ["PyTorch", "TimeSformer", "MS-TCN", "Qwen3-VL", "React"],
+      "url": "https://github.com/GennaFomin/itimperial_automarkup"
+    },
+    {
+      "slug": "platescanner", "title": "PlateScanner", "badge": ">92% OCR", "accent": "plain",
+      "tag": "license_plate 0.96", "thumb": "platescanner.jpg",
+      "desc": "License-plate detection and OCR: 5 detectors and 3 OCR models compared, >92% recognition accuracy.",
+      "chips": ["YOLO11", "ParseQ", "OCR", "Hugging Face"],
+      "url": "https://github.com/encore-ecosystem/PlateScanner"
+    },
+    {
+      "slug": "football", "title": "CV Football Analyzer", "badge": "2024", "accent": "plain",
+      "tag": "player 0.95", "thumb": "football.jpg",
+      "desc": "Match analytics: player tracking, team colours via KMeans, optical-flow camera motion, speed and distance.",
+      "chips": ["YOLOv8", "KMeans", "Optical flow", "OpenCV"],
+      "url": "https://github.com/PavelLekomtsev/CV-Football-Analyzer"
+    }
+  ],
+  "languages_repos": [
+    "PavelLekomtsev/NeoSmart",
+    "PavelLekomtsev/CV-Football-Analyzer",
+    "PavelLekomtsev/parking-detector",
+    "PavelLekomtsev/Architecture_threads",
+    "encore-ecosystem/PlateScanner",
+    "GennaFomin/itimperial_automarkup"
+  ]
+}
