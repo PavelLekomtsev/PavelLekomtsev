@@ -102,5 +102,54 @@ class BannerTest(unittest.TestCase, StaticAssetChecks):
         self.assertIn(self.content["name"].split()[0], texts_of(self.mobile))
 
 
+
+class BlocksTest(unittest.TestCase, StaticAssetChecks):
+    @classmethod
+    def setUpClass(cls):
+        cls.content = content()
+        cls.typing = build_static.build_typing(cls.content, ROOT)
+        cls.stack = build_static.build_stack(cls.content, ROOT)
+        cls.cards = {p["slug"]: build_static.build_card(p, ROOT) for p in cls.content["projects"]}
+        cls.all = [build_static.build_banner(cls.content, ROOT), build_static.build_banner_mobile(cls.content, ROOT),
+                   cls.typing, cls.stack, *cls.cards.values()]
+
+    def test_static_assets_wellformed(self):
+        self.assertEqual(len(self.all), 8)
+        for svg in self.all:
+            self.assert_wellformed_no_external_refs(svg)
+            self.assert_public_copy_rules(svg)
+
+    def test_typing_lines_exact(self):
+        root = ET.fromstring(self.typing)
+        shown = ["".join(t.itertext()).removeprefix("> ") for t in root.iter(f"{SVG_NS}text")]
+        self.assertEqual(shown, self.content["typing"])
+        first = next(root.iter(f"{SVG_NS}animate"))
+        self.assertEqual(first.get("begin"), "0s;a4.end")
+
+    def test_stack_fits(self):
+        root = ET.fromstring(self.stack)
+        self.assertEqual(root.get("width"), "920")
+        chips = [el for el in root.iter(f"{SVG_NS}rect") if el.get("class") == "chip"]
+        for chip in chips:
+            self.assertLessEqual(float(chip.get("x")) + float(chip.get("width")), 920 - 36)
+        labels = [t.text for t in root.iter(f"{SVG_NS}text") if t.get("class") == "lb"]
+        self.assertEqual(labels, [c["label"] for c in self.content["stack"]])
+        names = {t.text for t in root.iter(f"{SVG_NS}text") if t.get("class") == "nm"}
+        self.assertEqual(names, {i["name"] for c in self.content["stack"] for i in c["items"]})
+        rows = {chip.get("y") for chip in chips}
+        self.assertEqual(len(rows), 5)  # one line per category
+
+    def test_cards_text_fits(self):
+        sg5 = load_fonts(str(ROOT / "scripts" / "fonts"))["SG5"]
+        for slug, svg in self.cards.items():
+            root = ET.fromstring(svg)
+            self.assertEqual(root.get("width"), "434")
+            lines = [t.text for t in root.iter(f"{SVG_NS}text") if t.get("class") == "ds"]
+            self.assertTrue(1 <= len(lines) <= 3, slug)
+            for line in lines:
+                self.assertLessEqual(sg5.width(line, 14.5), 434 - 48, f"{slug}: {line}")
+            self.assertEqual(list(root.iter(f"{SVG_NS}a")), [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -3,14 +3,16 @@
 
 usage: build_static.py [OUT_DIR]   (default: <repo>/assets)
 """
+import base64
 import json
+import re
 import sys
 from pathlib import Path
 
 from hudkit.face import face_svg, load_face
 from hudkit.fonts import load_fonts
-from hudkit.palette import PAL
-from hudkit.svg import esc, rect_path, svg_doc
+from hudkit.palette import PAL, on_dark
+from hudkit.svg import corners, esc, rect_path, svg_doc, wrap
 
 ROOT = Path(__file__).resolve().parents[1]
 TITLE = "Pavel Lekomtsev – Middle Computer Vision Engineer"
@@ -177,6 +179,158 @@ def build_banner_mobile(content: dict, root: Path) -> str:
     return svg_doc(w, h, body, fonts, TITLE, _banner_css(sizes, h, fbox[3]), DESC)
 
 
+def build_typing(content: dict, root: Path) -> str:
+    """Typing-and-deleting line cycling through content["typing"], drawn with SMIL (no scripts)."""
+    fonts_dir, _ = _paths(root)
+    fonts = load_fonts(str(fonts_dir))
+    lines = content["typing"]
+    w, h, size, y = 880, 56, 22, 36
+    prompt = "> "
+    cw = fonts["JB7"].width("M", size)
+    fonts["JB7"].use(prompt + "".join(lines))
+    t_char, t_del, hold, gap = 0.065, 0.025, 1.9, 0.35
+    parts, carets = [], []
+    n = len(lines)
+    for i, line in enumerate(lines):
+        k = len(prompt + line)
+        x0 = (w - cw * k) / 2
+        type_t = [j * t_char for j in range(k + 1)]
+        t_hold = type_t[-1] + hold
+        del_t = [t_hold + j * t_del for j in range(1, k + 1)]
+        dur = del_t[-1] + gap
+        times = type_t + [t_hold] + del_t + [dur]
+        lens = list(range(k + 1)) + [k] + [k - j for j in range(1, k + 1)] + [0]
+        # the path grows one glyph per step; glyphs past the end of a textPath are not rendered
+        # https://www.w3.org/TR/SVG11/text.html#TextLayoutOnAPath
+        vals = ";".join(f"M{x0:.1f} {y} h{max(0.01, n_ * cw):.1f}" for n_ in lens)
+        keys = ";".join(f"{t / dur:.4f}" for t in times)
+        begin = f"0s;a{n - 1}.end" if i == 0 else f"a{i - 1}.end"
+        parts.append(
+            f'<path id="p{i}" d="M{x0:.1f} {y} h0.01"><animate id="a{i}" attributeName="d" begin="{begin}" '
+            f'dur="{dur:.3f}s" calcMode="discrete" fill="remove" values="{vals}" keyTimes="{keys}"/></path>\n'
+            f'<text class="t"><textPath xlink:href="#p{i}"><tspan class="pr">{esc(prompt)}</tspan>{esc(line)}'
+            f'</textPath></text>')
+        cvals = ";".join(f"{x0 + n_ * cw + 1:.1f}" for n_ in lens)
+        carets.append(f'<animate attributeName="x" begin="a{i}.begin" dur="{dur:.3f}s" calcMode="discrete" '
+                      f'fill="remove" values="{cvals}" keyTimes="{keys}"/>')
+    caret = f'<rect class="cr" x="-20" y="16" width="11" height="26" rx="1">{"".join(carets)}</rect>'
+    css = (f".t{{font:{size}px JB7;fill:{PAL['cyan']}}}.pr{{fill:{PAL['green']}}}"
+           f".cr{{fill:{PAL['cyan']};opacity:.85;animation:bl 1s step-end infinite}}@keyframes bl{{50%{{opacity:0}}}}")
+    return svg_doc(w, h, "\n".join(parts) + "\n" + caret, fonts, lines[0], css)
+
+
+def _icon_path(root: Path, slug: str) -> str:
+    _, data = _paths(root)
+    svg = (data / "icons" / f"{slug}.svg").read_text(encoding="utf-8")
+    return re.search(r'<path d="([^"]+)"', svg).group(1)
+
+
+def build_stack(content: dict, root: Path) -> str:
+    """Tech-stack panel: one row per category, each technology as an icon + name chip."""
+    fonts_dir, _ = _paths(root)
+    fonts = load_fonts(str(fonts_dir))
+    w = 920
+    label_w, row_h, chip_h, gap, top, max_x = 172, 46, 32, 8, 60, w - 36
+    rows, y = [], top
+    for cat in content["stack"]:
+        rows.append(f'<text class="lb" x="40" y="{y + 21}">{esc(fonts["JB7"].use(cat["label"]))}</text>')
+        x = 40 + label_w
+        for item in cat["items"]:
+            cw = 12 + 18 + 8 + fonts["SG5"].width(item["name"], 14) + 12
+            if x + cw > max_x:
+                x, y = 40 + label_w, y + row_h
+            rows.append(f'<rect x="{x:.1f}" y="{y}" width="{cw:.1f}" height="{chip_h}" rx="7" class="chip"/>')
+            if item["slug"]:
+                rows.append(f'<g transform="translate({x + 12:.1f} {y + 7}) scale(.75)" fill="{on_dark(item["hex"])}">'
+                            f'<path d="{_icon_path(root, item["slug"])}"/></g>')
+            else:  # no official icon: a small bounding-box glyph instead
+                rows.append(f'<rect x="{x + 12:.1f}" y="{y + 7}" width="18" height="18" rx="3" fill="none" '
+                            f'stroke="{PAL["cyan"]}" stroke-width="1.6"/><rect x="{x + 16:.1f}" y="{y + 11}" '
+                            f'width="10" height="10" fill="{PAL["cyan"]}" opacity=".35"/>')
+            rows.append(f'<text class="nm" x="{x + 38:.1f}" y="{y + 21}">{esc(item["name"])}</text>')
+            x += cw + gap
+        y += row_h
+    h = y + 22
+    note = "python-first · edge-ready"
+    head = (f'<rect x="1" y="1" width="{w - 2}" height="{h - 2}" rx="14" fill="{PAL["panel"]}" stroke="{PAL["line"]}"/>'
+            + corners(12, 12, w - 24, h - 24, n=16)
+            + f'<text class="hd" x="40" y="40">{esc(fonts["JB7"].use("TECH STACK"))}</text>'
+            + f'<text class="hd2" x="{w - 40}" y="40" text-anchor="end">{esc(fonts["JB5"].use(note))}</text>')
+    css = (f".lb{{font:12.5px JB7;fill:{PAL['muted']};letter-spacing:1.5px}}"
+           f".nm{{font:14px SG5;fill:{PAL['text']}}}.chip{{fill:{PAL['panel2']};stroke:{PAL['line']}}}"
+           f".hd{{font:14px JB7;fill:{PAL['cyan']};letter-spacing:2px}}.hd2{{font:12.5px JB5;fill:{PAL['hud']}}}")
+    return svg_doc(w, h, head + "\n".join(rows), fonts, "Tech stack", css)
+
+
+def _praxis_art(fonts, w: int, h: int) -> str:
+    """Stand-in preview for Praxis (no screenshots in the repo): keyframes over a segmented action timeline."""
+    segs = [(0.16, "#22d3ee", "pick up"), (0.22, "#3fb950", "rotate"), (0.12, "#a371f7", "inspect"),
+            (0.2, "#f0883e", "put down"), (0.1, "#db61a2", "push"), (0.2, "#4493f8", "release")]
+    out = [f'<rect width="{w}" height="{h}" fill="#08111a"/>',
+           '<pattern id="pg" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0H0V22" fill="none" '
+           'stroke="#0f1e26"/></pattern>',
+           f'<rect width="{w}" height="{h}" fill="url(#pg)"/>']
+    fx, fw = 26, w - 52
+    for j in range(6):
+        out.append(f'<rect x="{fx + j * (fw / 6) + 3:.1f}" y="16" width="{fw / 6 - 6:.1f}" height="60" rx="6" '
+                   f'fill="#0f1c26" stroke="{PAL["line"]}"/>')
+        out.append(f'<circle cx="{fx + j * (fw / 6) + fw / 12:.1f}" cy="46" r="{9 + (j % 3) * 3}" fill="none" '
+                   f'stroke="{segs[j][1]}" stroke-width="2" opacity=".8"/>')
+    cx = fx
+    for frac, col, lab in segs:
+        sw = fw * frac
+        out.append(f'<rect x="{cx + 1:.1f}" y="88" width="{sw - 2:.1f}" height="18" rx="4" fill="{col}" opacity=".9"/>')
+        if fonts["JB5"].width(lab, 11) + 6 <= sw:
+            out.append(f'<text class="pa" x="{cx + 4:.1f}" y="124">{esc(lab)}</text>')
+        cx += sw
+    out.append(f'<path d="M{fx + fw * 0.58:.1f} 82V112" stroke="{PAL["text"]}" stroke-width="2"/>')
+    return "\n".join(out)
+
+
+def build_card(project: dict, root: Path) -> str:
+    """Project card: preview with a detection-style label, title, badge, wrapped description, tech chips."""
+    fonts_dir, data = _paths(root)
+    fonts = load_fonts(str(fonts_dir))
+    w, h, ih = 434, 336, 178
+    out = [f'<clipPath id="cl"><rect x="1" y="1" width="{w - 2}" height="{h - 2}" rx="14"/></clipPath>',
+           f'<rect x="1" y="1" width="{w - 2}" height="{h - 2}" rx="14" fill="{PAL["panel"]}"/>',
+           '<g clip-path="url(#cl)">']
+    if project["thumb"]:
+        b64 = base64.b64encode((data / "thumbs" / project["thumb"]).read_bytes()).decode()
+        out.append(f'<image x="0" y="0" width="{w}" height="{ih}" preserveAspectRatio="xMidYMid slice" '
+                   f'xlink:href="data:image/jpeg;base64,{b64}"/>')
+        out.append(f'<rect x="0" y="0" width="{w}" height="{ih}" fill="url(#fade)"/>')
+    else:
+        out.append(_praxis_art(fonts, w, ih))
+    out.append("</g>")
+    out.append(f'<rect x="1" y="1" width="{w - 2}" height="{h - 2}" rx="14" fill="none" stroke="{PAL["line"]}"/>')
+    out.append(corners(12, 12, w - 24, ih - 22, n=14, op=0.9))
+    tw = fonts["JB7"].width(project["tag"], 12) + 14
+    out.append(f'<rect x="12" y="{ih - 34}" width="{tw:.1f}" height="22" fill="{PAL["cyan"]}"/>'
+               f'<text class="tg" x="19" y="{ih - 18.5}">{esc(project["tag"])}</text>')
+    out.append(f'<text class="ti" x="24" y="{ih + 38}">{esc(fonts["SG7"].use(project["title"]))}</text>')
+    bw = fonts["JB7"].width(project["badge"], 10.5, ls=0.5) + 16
+    gold = project.get("accent") == "gold"
+    fill, stroke, ink = ("#3a2a05", "#d4a72c", "#f2cc60") if gold else (PAL["panel2"], PAL["line"], PAL["sub"])
+    out.append(f'<rect x="{w - 24 - bw:.1f}" y="{ih + 22}" width="{bw:.1f}" height="22" rx="11" fill="{fill}" '
+               f'stroke="{stroke}"/><text class="bd" x="{w - 24 - bw / 2:.1f}" y="{ih + 37}" text-anchor="middle" '
+               f'fill="{ink}">{esc(project["badge"])}</text>')
+    for i, line in enumerate(wrap(fonts["SG5"], project["desc"], 14.5, w - 48)[:3]):
+        out.append(f'<text class="ds" x="24" y="{ih + 66 + i * 20}">{esc(line)}</text>')
+    x = 24.0
+    for chip in project["chips"]:
+        cw = fonts["JB5"].width(chip, 11.5) + 16
+        out.append(f'<rect x="{x:.1f}" y="{h - 40}" width="{cw:.1f}" height="22" rx="6" fill="{PAL["panel2"]}" '
+                   f'stroke="{PAL["line"]}"/><text class="ch" x="{x + 8:.1f}" y="{h - 25}">{esc(chip)}</text>')
+        x += cw + 6
+    defs = ('<defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".55" stop-color="#0b1117" '
+            'stop-opacity="0"/><stop offset="1" stop-color="#0b1117" stop-opacity=".85"/></linearGradient></defs>')
+    css = (f".tg{{font:12px JB7;fill:{PAL['ink']}}}.ti{{font:24px SG7;fill:{PAL['text']}}}"
+           f".bd{{font:10.5px JB7;letter-spacing:.5px}}.ds{{font:14.5px SG5;fill:{PAL['sub']}}}"
+           f".ch{{font:11.5px JB5;fill:{PAL['cyan']}}}.pa{{font:11px JB5;fill:{PAL['sub']}}}")
+    return svg_doc(w, h, defs + "\n".join(out), fonts, f'{project["title"]} – {project["desc"]}', css)
+
+
 def load_content(root: Path = ROOT) -> dict:
     return json.loads((root / "scripts" / "content.json").read_text(encoding="utf-8"))
 
@@ -187,7 +341,11 @@ def main(out_dir: Path) -> None:
     outputs = {
         "banner.svg": build_banner(content, ROOT),
         "banner-mobile.svg": build_banner_mobile(content, ROOT),
+        "typing.svg": build_typing(content, ROOT),
+        "stack.svg": build_stack(content, ROOT),
     }
+    for project in content["projects"]:
+        outputs[f'card-{project["slug"]}.svg'] = build_card(project, ROOT)
     for name, svg in outputs.items():
         (out_dir / name).write_text(svg, encoding="utf-8")
         print(f"{name}: {len(svg) / 1024:.1f} KB")
