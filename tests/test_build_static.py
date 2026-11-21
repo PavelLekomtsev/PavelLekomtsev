@@ -97,8 +97,10 @@ class BannerTest(unittest.TestCase, StaticAssetChecks):
         root = ET.fromstring(self.mobile)
         width = float(root.get("width"))
         css = style_of(self.mobile)
-        self.assertGreaterEqual(css_font_px(css, "name") * 360 / width, 24)
-        self.assertGreaterEqual(css_font_px(css, "sub") * 360 / width, 12)
+        # on a 360 px phone the profile README column is about 278 px wide (container + box padding)
+        shown = 278
+        self.assertGreaterEqual(css_font_px(css, "name") * shown / width, 24)
+        self.assertGreaterEqual(css_font_px(css, "sub") * shown / width, 12)
         self.assertIn(self.content["name"].split()[0], texts_of(self.mobile))
 
 
@@ -121,10 +123,29 @@ class BlocksTest(unittest.TestCase, StaticAssetChecks):
 
     def test_typing_lines_exact(self):
         root = ET.fromstring(self.typing)
-        shown = ["".join(t.itertext()).removeprefix("> ") for t in root.iter(f"{SVG_NS}text")]
+        shown = ["".join(t.itertext()).removeprefix("> ") for t in root.iter(f"{SVG_NS}text")
+                 if t.get("class") == "t"]
         self.assertEqual(shown, self.content["typing"])
         first = next(root.iter(f"{SVG_NS}animate"))
         self.assertEqual(first.get("begin"), "0s;a4.end")
+
+    def test_typing_shows_first_line_without_smil(self):
+        root = ET.fromstring(self.typing)
+        p0 = next(el for el in root.iter(f"{SVG_NS}path") if el.get("id") == "p0")
+        self.assertGreater(float(re.search(r"h([\d.]+)", p0.get("d")).group(1)), 200)
+        caret = next(el for el in root.iter(f"{SVG_NS}rect") if el.get("class") == "cr")
+        self.assertGreater(float(caret.get("x")), 0)
+        for anim in root.iter(f"{SVG_NS}animate"):
+            self.assertEqual(anim.get("fill"), "freeze")
+
+    def test_typing_reduced_motion_static_line(self):
+        root = ET.fromstring(self.typing)
+        still = [t for t in root.iter(f"{SVG_NS}text") if t.get("class") == "still"]
+        self.assertEqual(len(still), 1)
+        self.assertEqual("".join(still[0].itertext()), "> " + self.content["typing"][0])
+        css = style_of(self.typing)
+        self.assertRegex(css, r"\.still\{display:none\}")
+        self.assertRegex(css, r"@media \(prefers-reduced-motion:reduce\)\{\.t,\.cr\{display:none\}\.still\{display:inline\}\}")
 
     def test_stack_fits(self):
         root = ET.fromstring(self.stack)

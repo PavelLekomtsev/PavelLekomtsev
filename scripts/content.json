@@ -79,7 +79,7 @@
       "slug": "football", "title": "CV Football Analyzer", "badge": "2024", "accent": "plain",
       "tag": "player 0.95", "thumb": "football.jpg",
       "desc": "Match analytics: player tracking, team colours via KMeans, optical-flow camera motion, speed and distance.",
-      "chips": ["YOLOv8", "KMeans", "Optical flow", "OpenCV"],
+      "chips": ["YOLOv5", "ByteTrack", "KMeans", "Optical flow"],
       "url": "https://github.com/PavelLekomtsev/CV-Football-Analyzer"
     }
   ],

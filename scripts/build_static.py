@@ -152,12 +152,14 @@ def build_banner_mobile(content: dict, root: Path) -> str:
     """Narrow-screen header: name, label, two-line subtitle, face and a large pose readout, no small HUD text."""
     fonts_dir, _ = _paths(root)
     fonts = load_fonts(str(fonts_dir))
-    w, h = 640, 520
-    sizes = {"name": 52, "sub": 22, "tag": 20, "ftag": 16, "pose": 21}
-    name, box = _name_block(fonts, content, 52, 160, sizes)
+    w, h = 640, 550
+    # sized for a ~278 px README column on a 360 px phone: name >= 24 px, subtitle >= 12 px there
+    sizes = {"name": 56, "sub": 28, "tag": 22, "ftag": 18, "pose": 24}
+    name_x, name_base = 48, 170
+    name, box = _name_block(fonts, content, name_x, name_base, sizes)
     line1, _, line2 = content["subtitle"].partition(" · ")
     fonts["SG5"].use(line1 + line2)
-    face_h, face_top = 130, 322
+    face_h, face_top = 140, 345
     _, probe = _face_block(fonts, content, root, 0, 0, face_h, sizes["ftag"])
     cx = 52 - probe[0]
     face, fbox = _face_block(fonts, content, root, cx, face_top + face_h / 2, face_h, sizes["ftag"])
@@ -165,14 +167,14 @@ def build_banner_mobile(content: dict, root: Path) -> str:
     pose = []
     for i, (k, v, col) in enumerate(_pose_items(content)):
         fonts["JB7"].use(k + " " + v)
-        pose.append(f'<text class="pose" x="{px:.1f}" y="{face_top + 34 + i * 40}"><tspan fill="{col}">{k}</tspan>'
+        pose.append(f'<text class="pose" x="{px:.1f}" y="{face_top + 40 + i * 44}"><tspan fill="{col}">{k}</tspan>'
                     f' {esc(v)}</text>')
     body = "\n".join([
         _backdrop(w, h),
         f'<circle class="rec" cx="62" cy="59" r="6" fill="{PAL["rec"]}"/>',
         name,
-        f'<text class="sub" x="52" y="{160 + 62}">{esc(line1)}</text>',
-        f'<text class="sub" x="52" y="{160 + 94}">{esc(line2)}</text>',
+        f'<text class="sub" x="{name_x}" y="{name_base + 70}">{esc(line1)}</text>',
+        f'<text class="sub" x="{name_x}" y="{name_base + 106}">{esc(line2)}</text>',
         face,
         *pose,
     ])
@@ -205,18 +207,26 @@ def build_typing(content: dict, root: Path) -> str:
         vals = ";".join(f"M{x0:.1f} {y} h{max(0.01, n_ * cw):.1f}" for n_ in lens)
         keys = ";".join(f"{t / dur:.4f}" for t in times)
         begin = f"0s;a{n - 1}.end" if i == 0 else f"a{i - 1}.end"
+        # without SMIL the first line stays fully typed; every run freezes at length 0, so no line lingers
+        base = f"h{k * cw:.1f}" if i == 0 else "h0.01"
+        if i == 0:
+            still_x, caret_x = x0, x0 + k * cw + 1
         parts.append(
-            f'<path id="p{i}" d="M{x0:.1f} {y} h0.01"><animate id="a{i}" attributeName="d" begin="{begin}" '
-            f'dur="{dur:.3f}s" calcMode="discrete" fill="remove" values="{vals}" keyTimes="{keys}"/></path>\n'
+            f'<path id="p{i}" d="M{x0:.1f} {y} {base}"><animate id="a{i}" attributeName="d" begin="{begin}" '
+            f'dur="{dur:.3f}s" calcMode="discrete" fill="freeze" values="{vals}" keyTimes="{keys}"/></path>\n'
             f'<text class="t"><textPath xlink:href="#p{i}"><tspan class="pr">{esc(prompt)}</tspan>{esc(line)}'
             f'</textPath></text>')
         cvals = ";".join(f"{x0 + n_ * cw + 1:.1f}" for n_ in lens)
         carets.append(f'<animate attributeName="x" begin="a{i}.begin" dur="{dur:.3f}s" calcMode="discrete" '
-                      f'fill="remove" values="{cvals}" keyTimes="{keys}"/>')
-    caret = f'<rect class="cr" x="-20" y="16" width="11" height="26" rx="1">{"".join(carets)}</rect>'
-    css = (f".t{{font:{size}px JB7;fill:{PAL['cyan']}}}.pr{{fill:{PAL['green']}}}"
-           f".cr{{fill:{PAL['cyan']};opacity:.85;animation:bl 1s step-end infinite}}@keyframes bl{{50%{{opacity:0}}}}")
-    return svg_doc(w, h, "\n".join(parts) + "\n" + caret, fonts, lines[0], css)
+                      f'fill="freeze" values="{cvals}" keyTimes="{keys}"/>')
+    caret = f'<rect class="cr" x="{caret_x:.1f}" y="16" width="11" height="26" rx="1">{"".join(carets)}</rect>'
+    # SMIL ignores prefers-reduced-motion, so the static line is swapped in with CSS
+    still = (f'<text class="still" x="{still_x:.1f}" y="{y}"><tspan class="pr">{esc(prompt)}</tspan>'
+             f'{esc(lines[0])}</text>')
+    css = (f".t,.still{{font:{size}px JB7;fill:{PAL['cyan']}}}.pr{{fill:{PAL['green']}}}.still{{display:none}}"
+           f".cr{{fill:{PAL['cyan']};opacity:.85;animation:bl 1s step-end infinite}}@keyframes bl{{50%{{opacity:0}}}}"
+           f"@media (prefers-reduced-motion:reduce){{.t,.cr{{display:none}}.still{{display:inline}}}}")
+    return svg_doc(w, h, "\n".join(parts) + "\n" + caret + "\n" + still, fonts, lines[0], css)
 
 
 def _icon_path(root: Path, slug: str) -> str:

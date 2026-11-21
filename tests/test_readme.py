@@ -63,6 +63,20 @@ class ReadmeTest(unittest.TestCase):
         self.assertIn(f'src="{OUTPUT}snake-light.svg"', text)
 
 
+
+class LicenceTest(unittest.TestCase):
+    def test_vendored_licences_present(self):
+        face_licence = ROOT / "scripts" / "data" / "face" / "LICENSE"
+        self.assertTrue(face_licence.is_file())
+        text = face_licence.read_text(encoding="utf-8")
+        self.assertIn("Apache License", text)
+        self.assertIn("Version 2.0", text)
+        for font in ("OFL-SpaceGrotesk.txt", "OFL-JetBrainsMono.txt"):
+            self.assertIn("SIL OPEN FONT LICENSE", (ROOT / "scripts" / "fonts" / font).read_text(encoding="utf-8"))
+        notice = (ROOT / "NOTICE.md").read_text(encoding="utf-8")
+        self.assertIn("scripts/data/face/LICENSE", notice)
+        self.assertIn("contours.json", notice)
+
 class WorkflowTest(unittest.TestCase):
     def test_workflow_versions(self):
         wf = WORKFLOW.read_text(encoding="utf-8")
